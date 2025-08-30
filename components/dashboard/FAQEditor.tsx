@@ -1,28 +1,40 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Plus, 
-  Edit3, 
-  Trash2, 
-  Save, 
-  Eye, 
-  EyeOff, 
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Plus,
+  Edit3,
+  Trash2,
+  Save,
+  Eye,
+  EyeOff,
   GripVertical,
   HelpCircle,
-  Tag
-} from 'lucide-react';
-import toast from 'react-hot-toast';
+  Tag,
+} from "lucide-react";
+import toast from "react-hot-toast";
 
 interface FAQEditorProps {
   site: any;
@@ -42,24 +54,23 @@ export default function FAQEditor({ site }: FAQEditorProps) {
   const fetchFAQItems = async () => {
     try {
       const { data, error } = await supabase
-        .from('faq_items')
-        .select('*')
-        .eq('site_id', site.id)
-        .order('order_index', { ascending: true });
+        .from("faq_items")
+        .select("*")
+        .eq("site_id", site.id)
+        .order("order_index", { ascending: true });
 
       if (error) throw error;
-      
+
       setFaqItems(data || []);
-      
+
       // Extract unique categories
-      const uniqueCategories = [...new Set(
-        (data || [])
-          .map(item => item.category)
-          .filter(Boolean)
-      )] as string[];
+      const categorySet = new Set(
+        (data || []).map((item) => item.category).filter(Boolean)
+      );
+      const uniqueCategories = Array.from(categorySet) as string[];
       setCategories(uniqueCategories);
     } catch (error: any) {
-      toast.error('Failed to load FAQ items');
+      toast.error("Failed to load FAQ items");
     } finally {
       setLoading(false);
     }
@@ -69,7 +80,7 @@ export default function FAQEditor({ site }: FAQEditorProps) {
     try {
       if (editingItem) {
         const { error } = await supabase
-          .from('faq_items')
+          .from("faq_items")
           .update({
             question: formData.question,
             answer: formData.answer,
@@ -77,13 +88,13 @@ export default function FAQEditor({ site }: FAQEditorProps) {
             is_published: formData.is_published,
             updated_at: new Date().toISOString(),
           })
-          .eq('id', editingItem.id);
+          .eq("id", editingItem.id);
 
         if (error) throw error;
-        toast.success('FAQ item updated successfully');
+        toast.success("FAQ item updated successfully");
       } else {
         const { data, error } = await supabase
-          .from('faq_items')
+          .from("faq_items")
           .insert({
             site_id: site.id,
             question: formData.question,
@@ -96,48 +107,52 @@ export default function FAQEditor({ site }: FAQEditorProps) {
           .single();
 
         if (error) throw error;
-        toast.success('FAQ item created successfully');
+        toast.success("FAQ item created successfully");
       }
 
       setEditingItem(null);
       fetchFAQItems();
     } catch (error: any) {
-      toast.error('Failed to save FAQ item');
+      toast.error("Failed to save FAQ item");
     }
   };
 
   const handleDelete = async (itemId: string) => {
     try {
       const { error } = await supabase
-        .from('faq_items')
+        .from("faq_items")
         .delete()
-        .eq('id', itemId);
+        .eq("id", itemId);
 
       if (error) throw error;
-      
-      setFaqItems(faqItems.filter(item => item.id !== itemId));
-      toast.success('FAQ item deleted successfully');
+
+      setFaqItems(faqItems.filter((item) => item.id !== itemId));
+      toast.success("FAQ item deleted successfully");
     } catch (error: any) {
-      toast.error('Failed to delete FAQ item');
+      toast.error("Failed to delete FAQ item");
     }
   };
 
   const togglePublished = async (item: any) => {
     try {
       const { error } = await supabase
-        .from('faq_items')
+        .from("faq_items")
         .update({ is_published: !item.is_published })
-        .eq('id', item.id);
+        .eq("id", item.id);
 
       if (error) throw error;
-      
-      setFaqItems(faqItems.map(faq => 
-        faq.id === item.id ? { ...faq, is_published: !faq.is_published } : faq
-      ));
-      
-      toast.success(`FAQ item ${!item.is_published ? 'published' : 'unpublished'}`);
+
+      setFaqItems(
+        faqItems.map((faq) =>
+          faq.id === item.id ? { ...faq, is_published: !faq.is_published } : faq
+        )
+      );
+
+      toast.success(
+        `FAQ item ${!item.is_published ? "published" : "unpublished"}`
+      );
     } catch (error: any) {
-      toast.error('Failed to update FAQ item');
+      toast.error("Failed to update FAQ item");
     }
   };
 
@@ -201,8 +216,11 @@ export default function FAQEditor({ site }: FAQEditorProps) {
                             {item.category}
                           </Badge>
                         )}
-                        <Badge variant={item.is_published ? "default" : "secondary"} className="text-xs">
-                          {item.is_published ? 'Published' : 'Draft'}
+                        <Badge
+                          variant={item.is_published ? "default" : "secondary"}
+                          className="text-xs"
+                        >
+                          {item.is_published ? "Published" : "Draft"}
                         </Badge>
                       </div>
                       <p className="text-gray-600 text-sm line-clamp-2">
@@ -216,7 +234,11 @@ export default function FAQEditor({ site }: FAQEditorProps) {
                         size="sm"
                         className="text-gray-500 hover:text-gray-700"
                       >
-                        {item.is_published ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {item.is_published ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
                       </Button>
                       <Button
                         onClick={() => setEditingItem(item)}
@@ -250,8 +272,12 @@ export default function FAQEditor({ site }: FAQEditorProps) {
           className="text-center py-12"
         >
           <HelpCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No FAQ items yet</h3>
-          <p className="text-gray-600 mb-6">Create your first FAQ item to get started</p>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            No FAQ items yet
+          </h3>
+          <p className="text-gray-600 mb-6">
+            Create your first FAQ item to get started
+          </p>
           <Button
             onClick={() => setEditingItem({})}
             className="bg-gradient-to-r from-green-600 to-emerald-600"
@@ -282,10 +308,12 @@ export default function FAQEditor({ site }: FAQEditorProps) {
               <Card>
                 <CardHeader>
                   <CardTitle>
-                    {editingItem.id ? 'Edit FAQ Item' : 'Create FAQ Item'}
+                    {editingItem.id ? "Edit FAQ Item" : "Create FAQ Item"}
                   </CardTitle>
                   <CardDescription>
-                    {editingItem.id ? 'Update your FAQ item' : 'Add a new FAQ item to your site'}
+                    {editingItem.id
+                      ? "Update your FAQ item"
+                      : "Add a new FAQ item to your site"}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -307,9 +335,9 @@ export default function FAQEditor({ site }: FAQEditorProps) {
 
 function FAQItemForm({ item, categories, onSave, onCancel }: any) {
   const [formData, setFormData] = useState({
-    question: item.question || '',
-    answer: item.answer || '',
-    category: item.category || '',
+    question: item.question || "",
+    answer: item.answer || "",
+    category: item.category || "",
     is_published: item.is_published ?? true,
   });
 
@@ -325,7 +353,9 @@ function FAQItemForm({ item, categories, onSave, onCancel }: any) {
         <Input
           id="question"
           value={formData.question}
-          onChange={(e) => setFormData({ ...formData, question: e.target.value })}
+          onChange={(e) =>
+            setFormData({ ...formData, question: e.target.value })
+          }
           placeholder="What is your return policy?"
           required
         />
@@ -347,14 +377,16 @@ function FAQItemForm({ item, categories, onSave, onCancel }: any) {
         <Label htmlFor="category">Category</Label>
         <Select
           value={formData.category}
-          onValueChange={(value) => setFormData({ ...formData, category: value })}
+          onValueChange={(value) =>
+            setFormData({ ...formData, category: value })
+          }
         >
           <SelectTrigger>
             <SelectValue placeholder="Select or create category" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="">No category</SelectItem>
-            {categories.map((category) => (
+            {categories.map((category: string) => (
               <SelectItem key={category} value={category}>
                 {category}
               </SelectItem>
@@ -364,7 +396,9 @@ function FAQItemForm({ item, categories, onSave, onCancel }: any) {
         <Input
           placeholder="Or type new category"
           value={formData.category}
-          onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+          onChange={(e) =>
+            setFormData({ ...formData, category: e.target.value })
+          }
           className="mt-2"
         />
       </div>
@@ -373,7 +407,9 @@ function FAQItemForm({ item, categories, onSave, onCancel }: any) {
         <Switch
           id="published"
           checked={formData.is_published}
-          onCheckedChange={(checked) => setFormData({ ...formData, is_published: checked })}
+          onCheckedChange={(checked) =>
+            setFormData({ ...formData, is_published: checked })
+          }
         />
         <Label htmlFor="published">Publish immediately</Label>
       </div>

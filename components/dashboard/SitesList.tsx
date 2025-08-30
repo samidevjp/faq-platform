@@ -1,13 +1,27 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { createClient } from '@/lib/supabase';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { motion } from 'framer-motion';
-import { Globe, Edit3, Trash2, ExternalLink, Calendar } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { useState } from "react";
+import { createClient } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { motion } from "framer-motion";
+import {
+  Globe,
+  Edit3,
+  Trash2,
+  ExternalLink,
+  Calendar,
+  Plus,
+  FileText,
+} from "lucide-react";
+import toast from "react-hot-toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,7 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
+} from "@/components/ui/alert-dialog";
 
 interface SitesListProps {
   sites: any[];
@@ -27,7 +41,12 @@ interface SitesListProps {
   onSitesChange: (sites: any[]) => void;
 }
 
-export default function SitesList({ sites, loading, onSiteSelect, onSitesChange }: SitesListProps) {
+export default function SitesList({
+  sites,
+  loading,
+  onSiteSelect,
+  onSitesChange,
+}: SitesListProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const supabase = createClient();
 
@@ -35,17 +54,17 @@ export default function SitesList({ sites, loading, onSiteSelect, onSitesChange 
     setDeletingId(siteId);
     try {
       const { error } = await supabase
-        .from('faq_sites')
+        .from("faq_sites")
         .delete()
-        .eq('id', siteId);
+        .eq("id", siteId);
 
       if (error) throw error;
 
-      const updatedSites = sites.filter(site => site.id !== siteId);
+      const updatedSites = sites.filter((site) => site.id !== siteId);
       onSitesChange(updatedSites);
-      toast.success('Site deleted successfully');
+      toast.success("Site deleted successfully");
     } catch (error: any) {
-      toast.error('Failed to delete site');
+      toast.error("Failed to delete site");
     } finally {
       setDeletingId(null);
     }
@@ -77,9 +96,16 @@ export default function SitesList({ sites, loading, onSiteSelect, onSitesChange 
         className="text-center py-12"
       >
         <Globe className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">No FAQ sites yet</h3>
-        <p className="text-gray-600 mb-6">Create your first FAQ site to get started</p>
-        <Button onClick={() => {}} className="bg-gradient-to-r from-blue-600 to-indigo-600">
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">
+          No FAQ sites yet
+        </h3>
+        <p className="text-gray-600 mb-6">
+          Create your first FAQ site to get started
+        </p>
+        <Button
+          onClick={() => {}}
+          className="bg-gradient-to-r from-blue-600 to-indigo-600"
+        >
           <Plus className="w-4 h-4 mr-2" />
           Create Your First Site
         </Button>
@@ -95,7 +121,7 @@ export default function SitesList({ sites, loading, onSiteSelect, onSitesChange 
           <p className="text-gray-600">Manage and edit your FAQ sites</p>
         </div>
         <Badge variant="secondary" className="text-sm">
-          {sites.length} {sites.length === 1 ? 'site' : 'sites'}
+          {sites.length} {sites.length === 1 ? "site" : "sites"}
         </Badge>
       </div>
 
@@ -168,7 +194,8 @@ export default function SitesList({ sites, loading, onSiteSelect, onSitesChange 
                       <AlertDialogHeader>
                         <AlertDialogTitle>Delete Site</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Are you sure you want to delete "{site.name}"? This action cannot be undone.
+                          Are you sure you want to delete "{site.name}"? This
+                          action cannot be undone.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
