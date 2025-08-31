@@ -160,10 +160,20 @@ export default function SitesList({
               <CardContent className="pt-0">
                 <div className="flex flex-wrap gap-2 mb-4">
                   {site.domain && (
-                    <Badge variant="outline" className="text-xs">
-                      <ExternalLink className="w-3 h-3 mr-1" />
-                      {site.domain}
-                    </Badge>
+                    <a
+                      href={`/sites/${site.domain}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="no-underline"
+                    >
+                      <Badge
+                        variant="outline"
+                        className="text-xs hover:bg-gray-100"
+                      >
+                        <ExternalLink className="w-3 h-3 mr-1" />
+                        {site.domain}
+                      </Badge>
+                    </a>
                   )}
                   <Badge variant="secondary" className="text-xs">
                     <FileText className="w-3 h-3 mr-1" />

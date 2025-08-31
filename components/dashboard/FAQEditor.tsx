@@ -78,7 +78,7 @@ export default function FAQEditor({ site }: FAQEditorProps) {
 
   const handleSave = async (formData: any) => {
     try {
-      if (editingItem) {
+      if (!editingItem.isNew) {
         const { error } = await supabase
           .from("faq_items")
           .update({
@@ -93,16 +93,18 @@ export default function FAQEditor({ site }: FAQEditorProps) {
         if (error) throw error;
         toast.success("FAQ item updated successfully");
       } else {
+        const newFAQItem = {
+          site_id: site.id,
+          question: formData.question,
+          answer: formData.answer,
+          category: formData.category || null,
+          order_index: faqItems.length,
+          is_published: formData.is_published,
+        };
+
         const { data, error } = await supabase
           .from("faq_items")
-          .insert({
-            site_id: site.id,
-            question: formData.question,
-            answer: formData.answer,
-            category: formData.category || null,
-            order_index: faqItems.length,
-            is_published: formData.is_published,
-          })
+          .insert(newFAQItem)
           .select()
           .single();
 
@@ -113,7 +115,8 @@ export default function FAQEditor({ site }: FAQEditorProps) {
       setEditingItem(null);
       fetchFAQItems();
     } catch (error: any) {
-      toast.error("Failed to save FAQ item");
+      console.error("Failed to save FAQ item:", error);
+      toast.error(`Failed to save FAQ item: ${error.message}`);
     }
   };
 
@@ -182,7 +185,7 @@ export default function FAQEditor({ site }: FAQEditorProps) {
           <p className="text-gray-600">Editing: {site.name}</p>
         </div>
         <Button
-          onClick={() => setEditingItem({})}
+          onClick={() => setEditingItem({ isNew: true })}
           className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -279,7 +282,7 @@ export default function FAQEditor({ site }: FAQEditorProps) {
             Create your first FAQ item to get started
           </p>
           <Button
-            onClick={() => setEditingItem({})}
+            onClick={() => setEditingItem({ isNew: true })}
             className="bg-gradient-to-r from-green-600 to-emerald-600"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -335,10 +338,10 @@ export default function FAQEditor({ site }: FAQEditorProps) {
 
 function FAQItemForm({ item, categories, onSave, onCancel }: any) {
   const [formData, setFormData] = useState({
-    question: item.question || "",
-    answer: item.answer || "",
-    category: item.category || "",
-    is_published: item.is_published ?? true,
+    question: item.isNew ? "" : item.question || "",
+    answer: item.isNew ? "" : item.answer || "",
+    category: item.isNew ? "" : item.category || "",
+    is_published: item.isNew ? true : item.is_published ?? true,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -376,16 +379,19 @@ function FAQItemForm({ item, categories, onSave, onCancel }: any) {
       <div className="space-y-2">
         <Label htmlFor="category">Category</Label>
         <Select
-          value={formData.category}
+          value={formData.category || "none"}
           onValueChange={(value) =>
-            setFormData({ ...formData, category: value })
+            setFormData({
+              ...formData,
+              category: value === "none" ? "" : value,
+            })
           }
         >
           <SelectTrigger>
             <SelectValue placeholder="Select or create category" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">No category</SelectItem>
+            <SelectItem value="none">No category</SelectItem>
             {categories.map((category: string) => (
               <SelectItem key={category} value={category}>
                 {category}

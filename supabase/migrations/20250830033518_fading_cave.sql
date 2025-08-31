@@ -172,14 +172,22 @@ CREATE INDEX IF NOT EXISTS idx_faq_items_order ON faq_items(site_id, order_index
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS trigger AS $$
 BEGIN
-  INSERT INTO profiles (id, email, full_name, avatar_url)
+  -- Insert into profiles table with proper error handling
+  INSERT INTO public.profiles (id, email, full_name, avatar_url)
   VALUES (
     NEW.id,
-    NEW.email,
-    NEW.raw_user_meta_data->>'full_name',
+    COALESCE(NEW.email, ''),
+    COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
     NEW.raw_user_meta_data->>'avatar_url'
-  );
+  )
+  ON CONFLICT (id) DO NOTHING;
+  
   RETURN NEW;
+EXCEPTION
+  WHEN OTHERS THEN
+    -- Log the error but don't fail the user creation
+    RAISE WARNING 'Error creating profile for user %: %', NEW.id, SQLERRM;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -210,3 +218,25 @@ CREATE TRIGGER update_faq_sites_updated_at
 CREATE TRIGGER update_faq_items_updated_at
   BEFORE UPDATE ON faq_items
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Additional RLS policies to ensure trigger function can work properly
+DO $$
+BEGIN
+  -- Drop existing policies if they exist
+  DROP POLICY IF EXISTS "Allow service role to insert profiles" ON profiles;
+  DROP POLICY IF EXISTS "Users can insert own profile during signup" ON profiles;
+  
+  -- Create new policies
+  CREATE POLICY "Allow service role to insert profiles"
+    ON profiles
+    FOR INSERT
+    TO service_role
+    WITH CHECK (true);
+
+  CREATE POLICY "Users can insert own profile during signup"
+    ON profiles
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() = id);
+END
+$$;
