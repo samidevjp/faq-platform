@@ -131,3 +131,7 @@ This project is private and proprietary.
 ## Support
 
 If you have any questions or run into issues, please open an issue in the GitHub repository.
+
+## Site
+
+https://faq-platform-7oyz.vercel.app/
