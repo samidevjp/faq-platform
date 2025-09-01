@@ -1,7 +1,8 @@
 import { createServerClient } from "@/lib/supabase-server";
 import { notFound } from "next/navigation";
 import { SiteTheme, defaultTheme } from "@/lib/types/theme";
-
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 interface PageProps {
   params: {
     domain: string;
@@ -62,21 +63,21 @@ async function getFAQSite(domain: string) {
   }
 }
 
-export async function generateStaticParams() {
-  try {
-    const sites = await getAllFAQSites();
-    console.log(
-      "Generating static params for domains:",
-      sites.map((site) => site.domain)
-    );
-    return sites.map((site) => ({
-      domain: site.domain,
-    }));
-  } catch (error) {
-    console.error("Error in generateStaticParams:", error);
-    return [];
-  }
-}
+// export async function generateStaticParams() {
+//   try {
+//     const sites = await getAllFAQSites();
+//     console.log(
+//       "Generating static params for domains:",
+//       sites.map((site) => site.domain)
+//     );
+//     return sites.map((site) => ({
+//       domain: site.domain,
+//     }));
+//   } catch (error) {
+//     console.error("Error in generateStaticParams:", error);
+//     return [];
+//   }
+// }
 
 export default async function FAQSitePage({ params }: PageProps) {
   try {
