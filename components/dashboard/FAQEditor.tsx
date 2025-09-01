@@ -33,7 +33,11 @@ import {
   GripVertical,
   HelpCircle,
   Tag,
+  Settings,
+  List,
+  Folder,
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import toast from "react-hot-toast";
 
 interface FAQEditorProps {
@@ -49,6 +53,8 @@ export default function FAQEditor({ site }: FAQEditorProps) {
   const [isNameEdited, setIsNameEdited] = useState(false);
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [newCategory, setNewCategory] = useState("");
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [editedCategoryName, setEditedCategoryName] = useState("");
   const supabase = createClient();
 
   // コンポーネント初期化時のデバッグ情報
@@ -294,6 +300,48 @@ export default function FAQEditor({ site }: FAQEditorProps) {
     }
   };
 
+  const handleUpdateCategory = async (oldName: string, newName: string) => {
+    try {
+      const trimmedNewName = newName.trim();
+      if (!trimmedNewName) {
+        toast.error("カテゴリー名を入力してください");
+        return;
+      }
+
+      if (categories.includes(trimmedNewName)) {
+        toast.error("同じ名前のカテゴリーが既に存在します");
+        return;
+      }
+
+      const { error } = await supabase
+        .from("site_categories")
+        .update({ name: trimmedNewName })
+        .eq("site_id", site.id)
+        .eq("name", oldName);
+
+      if (error) throw error;
+
+      // FAQアイテムのカテゴリーも更新
+      const { error: faqError } = await supabase
+        .from("faq_items")
+        .update({ category: trimmedNewName })
+        .eq("site_id", site.id)
+        .eq("category", oldName);
+
+      if (faqError) throw faqError;
+
+      setCategories(
+        categories.map((c) => (c === oldName ? trimmedNewName : c))
+      );
+      setEditingCategory(null);
+      setEditedCategoryName("");
+      toast.success("カテゴリー名を更新しました");
+    } catch (error: any) {
+      console.error("カテゴリー名の更新エラー:", error);
+      toast.error("カテゴリー名の更新に失敗しました");
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -314,142 +362,271 @@ export default function FAQEditor({ site }: FAQEditorProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">FAQ Editor</h2>
-          <div className="flex items-center gap-2">
-            <Input
-              value={siteName}
-              onChange={(e) => handleSiteNameChange(e.target.value)}
-              className="max-w-xs text-gray-600"
-              placeholder="サイト名"
-            />
-            {isNameEdited && (
-              <Button
-                onClick={handleSiteNameSave}
-                size="sm"
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Save className="w-4 h-4 mr-2" />
-                保存
-              </Button>
-            )}
-          </div>
-        </div>
-        <Button
-          onClick={() => setEditingItem({ isNew: true })}
-          className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add FAQ Item
-        </Button>
-        <Button
-          onClick={() => setShowCategoryManager(true)}
-          variant="outline"
-          className="ml-2"
-        >
-          <Tag className="w-4 h-4 mr-2" />
-          カテゴリー管理
-        </Button>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">FAQ Editor</h2>
       </div>
 
-      {/* FAQ Items List */}
-      <div className="space-y-4">
-        <AnimatePresence>
-          {faqItems.map((item, index) => (
-            <motion.div
-              key={item.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3, delay: index * 0.05 }}
-            >
-              <Card className="group hover:shadow-md transition-all duration-300">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <GripVertical className="w-4 h-4 text-gray-400" />
-                        <h3 className="font-semibold text-gray-900 truncate">
-                          {item.question}
-                        </h3>
-                        {item.category && (
-                          <Badge variant="outline" className="text-xs">
-                            <Tag className="w-3 h-3 mr-1" />
-                            {item.category}
-                          </Badge>
-                        )}
-                        <Badge
-                          variant={item.is_published ? "default" : "secondary"}
-                          className="text-xs"
-                        >
-                          {item.is_published ? "Published" : "Draft"}
-                        </Badge>
-                      </div>
-                      <p className="text-gray-600 text-sm line-clamp-2">
-                        {item.answer}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 ml-4">
-                      <Button
-                        onClick={() => togglePublished(item)}
-                        variant="ghost"
-                        size="sm"
-                        className="text-gray-500 hover:text-gray-700"
-                      >
-                        {item.is_published ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
-                      </Button>
-                      <Button
-                        onClick={() => setEditingItem(item)}
-                        variant="ghost"
-                        size="sm"
-                        className="text-blue-600 hover:text-blue-700"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        onClick={() => handleDelete(item.id)}
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
-
-      {faqItems.length === 0 && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center py-12"
-        >
-          <HelpCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            No FAQ items yet
-          </h3>
-          <p className="text-gray-600 mb-6">
-            Create your first FAQ item to get started
-          </p>
-          <Button
-            onClick={() => setEditingItem({ isNew: true })}
-            className="bg-gradient-to-r from-green-600 to-emerald-600"
+      <Tabs defaultValue="manage-faq" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="manage-faq" className="flex items-center gap-2">
+            <List className="w-4 h-4" />
+            Manage FAQ
+          </TabsTrigger>
+          <TabsTrigger
+            value="manage-category"
+            className="flex items-center gap-2"
           >
-            <Plus className="w-4 h-4 mr-2" />
-            Create Your First FAQ
-          </Button>
-        </motion.div>
-      )}
+            <Folder className="w-4 h-4" />
+            Manage Category
+          </TabsTrigger>
+          <TabsTrigger
+            value="site-settings"
+            className="flex items-center gap-2"
+          >
+            <Settings className="w-4 h-4" />
+            Site Settings
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="manage-faq" className="mt-6">
+          <div className="flex justify-between items-center mb-6">
+            <Button
+              onClick={() => setEditingItem({ isNew: true })}
+              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add FAQ Item
+            </Button>
+          </div>
+          {/* FAQ Items List */}
+          <div className="space-y-4">
+            <AnimatePresence>
+              {faqItems.map((item, index) => (
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
+                >
+                  <Card className="group hover:shadow-md transition-all duration-300">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <GripVertical className="w-4 h-4 text-gray-400" />
+                            <h3 className="font-semibold text-gray-900 truncate">
+                              {item.question}
+                            </h3>
+                            {item.category && (
+                              <Badge variant="outline" className="text-xs">
+                                <Tag className="w-3 h-3 mr-1" />
+                                {item.category}
+                              </Badge>
+                            )}
+                            <Badge
+                              variant={
+                                item.is_published ? "default" : "secondary"
+                              }
+                              className="text-xs"
+                            >
+                              {item.is_published ? "Published" : "Draft"}
+                            </Badge>
+                          </div>
+                          <p className="text-gray-600 text-sm line-clamp-2">
+                            {item.answer}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 ml-4">
+                          <Button
+                            onClick={() => togglePublished(item)}
+                            variant="ghost"
+                            size="sm"
+                            className="text-gray-500 hover:text-gray-700"
+                          >
+                            {item.is_published ? (
+                              <EyeOff className="w-4 h-4" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                          </Button>
+                          <Button
+                            onClick={() => setEditingItem(item)}
+                            variant="ghost"
+                            size="sm"
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            onClick={() => handleDelete(item.id)}
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+
+          {faqItems.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-center py-12"
+            >
+              <HelpCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                No FAQ items yet
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Create your first FAQ item to get started
+              </p>
+              <Button
+                onClick={() => setEditingItem({ isNew: true })}
+                className="bg-gradient-to-r from-green-600 to-emerald-600"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create Your First FAQ
+              </Button>
+            </motion.div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="manage-category" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>カテゴリー管理</CardTitle>
+              <CardDescription>
+                カテゴリーの追加、編集、削除ができます
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <Input
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    placeholder="新しいカテゴリー"
+                  />
+                  <Button
+                    onClick={handleAddCategory}
+                    disabled={!newCategory.trim()}
+                  >
+                    追加
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {categories.map((category) => (
+                    <div
+                      key={category}
+                      className="flex items-center justify-between p-2 bg-gray-50 rounded"
+                    >
+                      {editingCategory === category ? (
+                        <div className="flex-1 flex items-center gap-2">
+                          <Input
+                            value={editedCategoryName}
+                            onChange={(e) =>
+                              setEditedCategoryName(e.target.value)
+                            }
+                            placeholder="カテゴリー名"
+                            className="flex-1"
+                          />
+                          <Button
+                            onClick={() =>
+                              handleUpdateCategory(category, editedCategoryName)
+                            }
+                            size="sm"
+                            className="bg-blue-600 hover:bg-blue-700"
+                          >
+                            <Save className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              setEditingCategory(null);
+                              setEditedCategoryName("");
+                            }}
+                            variant="ghost"
+                            size="sm"
+                          >
+                            キャンセル
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <span>{category}</span>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              onClick={() => {
+                                setEditingCategory(category);
+                                setEditedCategoryName(category);
+                              }}
+                              variant="ghost"
+                              size="sm"
+                              className="text-blue-600 hover:text-blue-700"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              onClick={() => handleDeleteCategory(category)}
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="site-settings" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>サイト設定</CardTitle>
+              <CardDescription>サイトの基本設定を管理します</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="site-name">サイト名</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="site-name"
+                      value={siteName}
+                      onChange={(e) => handleSiteNameChange(e.target.value)}
+                      className="max-w-xs text-gray-600"
+                      placeholder="サイト名"
+                    />
+                    {isNameEdited && (
+                      <Button
+                        onClick={handleSiteNameSave}
+                        size="sm"
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        <Save className="w-4 h-4 mr-2" />
+                        保存
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Edit/Create Modal */}
       <AnimatePresence>
@@ -538,15 +715,65 @@ export default function FAQEditor({ site }: FAQEditorProps) {
                           key={category}
                           className="flex items-center justify-between p-2 bg-gray-50 rounded"
                         >
-                          <span>{category}</span>
-                          <Button
-                            onClick={() => handleDeleteCategory(category)}
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          {editingCategory === category ? (
+                            <div className="flex-1 flex items-center gap-2">
+                              <Input
+                                value={editedCategoryName}
+                                onChange={(e) =>
+                                  setEditedCategoryName(e.target.value)
+                                }
+                                placeholder="カテゴリー名"
+                                className="flex-1"
+                              />
+                              <Button
+                                onClick={() =>
+                                  handleUpdateCategory(
+                                    category,
+                                    editedCategoryName
+                                  )
+                                }
+                                size="sm"
+                                className="bg-blue-600 hover:bg-blue-700"
+                              >
+                                <Save className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  setEditingCategory(null);
+                                  setEditedCategoryName("");
+                                }}
+                                variant="ghost"
+                                size="sm"
+                              >
+                                キャンセル
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <span>{category}</span>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  onClick={() => {
+                                    setEditingCategory(category);
+                                    setEditedCategoryName(category);
+                                  }}
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-blue-600 hover:text-blue-700"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  onClick={() => handleDeleteCategory(category)}
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -568,84 +795,197 @@ function FAQItemForm({ item, categories, onSave, onCancel }: any) {
     category: item.isNew ? "" : item.category || "",
     is_published: item.isNew ? true : item.is_published ?? true,
   });
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [newCategory, setNewCategory] = useState("");
+  const supabase = createClient();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
   };
 
+  const handleAddCategory = async () => {
+    try {
+      const trimmedCategory = newCategory.trim();
+      if (!trimmedCategory) {
+        toast.error("カテゴリー名を入力してください");
+        return;
+      }
+
+      if (categories.includes(trimmedCategory)) {
+        toast.error("同じ名前のカテゴリーが既に存在します");
+        return;
+      }
+
+      const { error } = await supabase.from("site_categories").insert({
+        site_id: item.site_id,
+        name: trimmedCategory,
+      });
+
+      if (error) throw error;
+
+      // カテゴリーリストを更新
+      categories.push(trimmedCategory);
+
+      // 新しく追加したカテゴリーを選択
+      setFormData({ ...formData, category: trimmedCategory });
+
+      // モーダルを閉じてフォームをリセット
+      setShowAddCategoryModal(false);
+      setNewCategory("");
+
+      toast.success("カテゴリーを追加しました");
+    } catch (error: any) {
+      console.error("カテゴリーの追加エラー:", error);
+      toast.error("カテゴリーの追加に失敗しました");
+    }
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-2">
-        <Label htmlFor="question">Question *</Label>
-        <Input
-          id="question"
-          value={formData.question}
-          onChange={(e) =>
-            setFormData({ ...formData, question: e.target.value })
-          }
-          placeholder="What is your return policy?"
-          required
-        />
-      </div>
+    <>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-2">
+          <Label htmlFor="question">Question *</Label>
+          <Input
+            id="question"
+            value={formData.question}
+            onChange={(e) =>
+              setFormData({ ...formData, question: e.target.value })
+            }
+            placeholder="What is your return policy?"
+            required
+          />
+        </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="answer">Answer *</Label>
-        <Textarea
-          id="answer"
-          value={formData.answer}
-          onChange={(e) => setFormData({ ...formData, answer: e.target.value })}
-          placeholder="Our return policy allows..."
-          rows={6}
-          required
-        />
-      </div>
+        <div className="space-y-2">
+          <Label htmlFor="answer">Answer *</Label>
+          <Textarea
+            id="answer"
+            value={formData.answer}
+            onChange={(e) =>
+              setFormData({ ...formData, answer: e.target.value })
+            }
+            placeholder="Our return policy allows..."
+            rows={6}
+            required
+          />
+        </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="category">Category</Label>
-        <Select
-          value={formData.category || "none"}
-          onValueChange={(value) =>
-            setFormData({
-              ...formData,
-              category: value === "none" ? "" : value,
-            })
-          }
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select or create category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">No category</SelectItem>
-            {categories.map((category: string) => (
-              <SelectItem key={category} value={category}>
-                {category}
+        <div className="space-y-2">
+          <Label htmlFor="category">Category</Label>
+          <Select
+            value={formData.category || "none"}
+            onValueChange={(value) => {
+              if (value === "add_new") {
+                setShowAddCategoryModal(true);
+              } else {
+                setFormData({
+                  ...formData,
+                  category: value === "none" ? "" : value,
+                });
+              }
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select or create category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No category</SelectItem>
+              {categories.map((category: string) => (
+                <SelectItem key={category} value={category}>
+                  {category}
+                </SelectItem>
+              ))}
+              <SelectItem value="add_new" className="text-blue-600">
+                <Plus className="w-4 h-4 mr-2 inline-block" />
+                新しいカテゴリーを追加
               </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+            </SelectContent>
+          </Select>
+        </div>
 
-      <div className="flex items-center space-x-2">
-        <Switch
-          id="published"
-          checked={formData.is_published}
-          onCheckedChange={(checked) =>
-            setFormData({ ...formData, is_published: checked })
-          }
-        />
-        <Label htmlFor="published">Publish immediately</Label>
-      </div>
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="published"
+            checked={formData.is_published}
+            onCheckedChange={(checked) =>
+              setFormData({ ...formData, is_published: checked })
+            }
+          />
+          <Label htmlFor="published">Publish immediately</Label>
+        </div>
 
-      <div className="flex gap-3 pt-4">
-        <Button type="submit" className="flex-1">
-          <Save className="w-4 h-4 mr-2" />
-          Save FAQ Item
-        </Button>
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-      </div>
-    </form>
+        <div className="flex gap-3 pt-4">
+          <Button type="submit" className="flex-1">
+            <Save className="w-4 h-4 mr-2" />
+            Save FAQ Item
+          </Button>
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+        </div>
+      </form>
+
+      {/* Add Category Modal */}
+      <AnimatePresence>
+        {showAddCategoryModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+            onClick={() => setShowAddCategoryModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md"
+            >
+              <Card>
+                <CardHeader>
+                  <CardTitle>新しいカテゴリーを追加</CardTitle>
+                  <CardDescription>
+                    新しいカテゴリーを作成して、FAQアイテムに割り当てることができます
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="new-category">カテゴリー名</Label>
+                      <Input
+                        id="new-category"
+                        value={newCategory}
+                        onChange={(e) => setNewCategory(e.target.value)}
+                        placeholder="新しいカテゴリー名"
+                      />
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        type="button"
+                        onClick={() => setShowAddCategoryModal(false)}
+                        variant="outline"
+                      >
+                        キャンセル
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={handleAddCategory}
+                        disabled={!newCategory.trim()}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        追加
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

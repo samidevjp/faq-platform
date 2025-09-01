@@ -10,6 +10,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import CreateSiteForm from "./CreateSiteForm";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import {
@@ -37,6 +46,7 @@ import {
 interface SitesListProps {
   sites: any[];
   loading: boolean;
+  userId: string;
   onSiteSelect: (site: any) => void;
   onSitesChange: (sites: any[]) => void;
 }
@@ -44,10 +54,12 @@ interface SitesListProps {
 export default function SitesList({
   sites,
   loading,
+  userId,
   onSiteSelect,
   onSitesChange,
 }: SitesListProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const supabase = createClient();
 
   const handleDelete = async (siteId: string) => {
@@ -102,13 +114,29 @@ export default function SitesList({
         <p className="text-gray-600 mb-6">
           Create your first FAQ site to get started
         </p>
-        <Button
-          onClick={() => {}}
-          className="bg-gradient-to-r from-blue-600 to-indigo-600"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Create Your First Site
-        </Button>
+        <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600">
+              <Plus className="w-4 h-4 mr-2" />
+              Create Your First Site
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Create New FAQ Site</DialogTitle>
+              <DialogDescription>
+                Build a beautiful FAQ site for your customers
+              </DialogDescription>
+            </DialogHeader>
+            <CreateSiteForm
+              userId={userId}
+              onSiteCreated={(newSite) => {
+                onSitesChange([...sites, newSite]);
+                setIsCreateModalOpen(false);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
       </motion.div>
     );
   }
@@ -120,9 +148,34 @@ export default function SitesList({
           <h2 className="text-2xl font-bold text-gray-900">Your FAQ Sites</h2>
           <p className="text-gray-600">Manage and edit your FAQ sites</p>
         </div>
-        <Badge variant="secondary" className="text-sm">
-          {sites.length} {sites.length === 1 ? "site" : "sites"}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="text-sm">
+            {sites.length} {sites.length === 1 ? "site" : "sites"}
+          </Badge>
+          <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-to-r from-blue-600 to-indigo-600">
+                <Plus className="w-4 h-4 mr-2" />
+                Add a Site
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle>Create New FAQ Site</DialogTitle>
+                <DialogDescription>
+                  Build a beautiful FAQ site for your customers
+                </DialogDescription>
+              </DialogHeader>
+              <CreateSiteForm
+                userId={userId}
+                onSiteCreated={(newSite) => {
+                  onSitesChange([...sites, newSite]);
+                  setIsCreateModalOpen(false);
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
