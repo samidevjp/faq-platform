@@ -418,6 +418,12 @@ export default function FAQEditor({
             onSiteNameSave={handleSiteNameSave}
             onDomainChange={setDomain}
             onDomainSave={handleDomainSave}
+            onProfileImageChange={function (imageUrl: string): void {
+              throw new Error("Function not implemented.");
+            }}
+            onProfileImageRemove={function (): void {
+              throw new Error("Function not implemented.");
+            }}
           />
         </TabsContent>
       </Tabs>

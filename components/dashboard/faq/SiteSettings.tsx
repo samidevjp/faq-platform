@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ImageUpload } from "@/components/ui/image-upload";
 import { Save } from "lucide-react";
 import { isDomainAvailable } from "@/lib/utils/domain";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -18,21 +19,27 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 interface SiteSettingsProps {
   siteName: string;
   domain: string;
+  profileImage?: string;
   isNameEdited: boolean;
   onSiteNameChange: (name: string) => void;
   onSiteNameSave: () => void;
   onDomainChange: (domain: string) => void;
   onDomainSave: () => void;
+  onProfileImageChange: (imageUrl: string) => void;
+  onProfileImageRemove: () => void;
 }
 
 export default function SiteSettings({
   siteName,
   domain,
+  profileImage,
   isNameEdited,
   onSiteNameChange,
   onSiteNameSave,
   onDomainChange,
   onDomainSave,
+  onProfileImageChange,
+  onProfileImageRemove,
 }: SiteSettingsProps) {
   const [isDomainEdited, setIsDomainEdited] = useState(false);
   const [domainError, setDomainError] = useState<string | null>(null);
@@ -109,6 +116,15 @@ export default function SiteSettings({
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
+          <div className="space-y-4">
+            <Label>プロフィール画像</Label>
+            <ImageUpload
+              value={profileImage}
+              onChange={onProfileImageChange}
+              onRemove={onProfileImageRemove}
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="site-name">サイト名</Label>
             <div className="flex items-center gap-2">
