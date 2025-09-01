@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,7 +38,11 @@ export default function SiteSettings({
   const [domainError, setDomainError] = useState<string | null>(null);
   const [isCheckingDomain, setIsCheckingDomain] = useState(false);
 
-  const handleDomainChange = async (newDomain: string) => {
+  const checkIdRef = useRef(0);
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleDomainChange = (newDomain: string) => {
     const formattedDomain = newDomain
       .toLowerCase()
       .trim()
@@ -49,38 +53,49 @@ export default function SiteSettings({
     setIsDomainEdited(true);
     onDomainChange(formattedDomain);
 
-    if (formattedDomain === domain) {
-      setIsDomainEdited(false);
-      return;
-    }
-
     if (formattedDomain.length < 3) {
       setDomainError("ドメインは3文字以上である必要があります");
       return;
     }
-
     if (formattedDomain.length > 63) {
       setDomainError("ドメインは63文字以下である必要があります");
       return;
     }
 
-    setIsCheckingDomain(true);
-    try {
-      const isAvailable = await isDomainAvailable(formattedDomain);
-      if (!isAvailable) {
-        setDomainError("このドメインは既に使用されています");
-      } else {
-        setDomainError(null);
-      }
-    } catch (error) {
-      setDomainError("ドメインの確認中にエラーが発生しました");
-    } finally {
-      setIsCheckingDomain(false);
-    }
+    setDomainError(null);
   };
 
+  useEffect(() => {
+    if (!isDomainEdited) return;
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    debounceRef.current = setTimeout(async () => {
+      if (domain.length < 3 || domain.length > 63) return;
+
+      const myCheckId = ++checkIdRef.current;
+      setIsCheckingDomain(true);
+      try {
+        const available = await isDomainAvailable(domain);
+
+        if (myCheckId !== checkIdRef.current) return;
+
+        setDomainError(available ? null : "このドメインは既に使用されています");
+      } catch {
+        if (myCheckId !== checkIdRef.current) return;
+        setDomainError("ドメインの確認中にエラーが発生しました");
+      } finally {
+        if (myCheckId === checkIdRef.current) setIsCheckingDomain(false);
+      }
+    }, 400);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [domain, isDomainEdited]);
+
   const handleDomainSave = () => {
-    if (!domainError && isDomainEdited) {
+    if (!domainError && isDomainEdited && !isCheckingDomain) {
       onDomainSave();
       setIsDomainEdited(false);
     }
@@ -128,11 +143,7 @@ export default function SiteSettings({
                     onChange={(e) => handleDomainChange(e.target.value)}
                     className="text-gray-600 pr-24"
                     placeholder="your-site"
-                    disabled={isCheckingDomain}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                    .faq.com
-                  </span>
                 </div>
                 {isDomainEdited && !domainError && (
                   <Button
@@ -142,10 +153,17 @@ export default function SiteSettings({
                     disabled={isCheckingDomain}
                   >
                     <Save className="w-4 h-4 mr-2" />
-                    保存
+                    {isCheckingDomain ? "確認中..." : "保存"}
                   </Button>
                 )}
               </div>
+              <p className="text-sm text-gray-500">
+                URL:{" "}
+                <span className="font-mono">
+                  {process.env.NEXT_PUBLIC_SITE_URL}/sites/
+                  {domain || "your-site"}
+                </span>
+              </p>
               {domainError && (
                 <Alert variant="destructive">
                   <AlertDescription>{domainError}</AlertDescription>
