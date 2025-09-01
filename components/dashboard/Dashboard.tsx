@@ -159,7 +159,21 @@ export default function Dashboard({ user }: DashboardProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <FAQEditor site={selectedSite} />
+              <FAQEditor
+                site={selectedSite}
+                onBack={() => {
+                  setActiveTab("sites");
+                  setSelectedSite(null);
+                }}
+                onSiteUpdate={(updatedSite) => {
+                  setSelectedSite(updatedSite);
+                  setSites(
+                    sites.map((site) =>
+                      site.id === updatedSite.id ? updatedSite : site
+                    )
+                  );
+                }}
+              />
             </motion.div>
           )}
 
