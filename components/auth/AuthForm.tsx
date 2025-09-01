@@ -52,36 +52,36 @@ export default function AuthForm() {
 
       console.log("Sign up successful:", data);
 
-      // ユーザーが作成された場合、手動でプロファイルを作成
-      if (data.user && data.user.id) {
-        try {
-          console.log("Creating profile manually...");
+      // // ユーザーが作成された場合、手動でプロファイルを作成
+      // if (data.user && data.user.id) {
+      //   try {
+      //     console.log("Creating profile manually...");
 
-          const { error: insertError } = await supabase
-            .from("profiles")
-            .insert({
-              id: data.user.id,
-              email: data.user.email || email,
-              full_name: fullName || "",
-              avatar_url: null,
-            });
+      //     const { error: insertError } = await supabase
+      //       .from("profiles")
+      //       .insert({
+      //         id: data.user.id,
+      //         email: data.user.email || email,
+      //         full_name: fullName || "",
+      //         avatar_url: null,
+      //       });
 
-          if (insertError) {
-            console.error("Profile creation failed:", insertError);
+      //     if (insertError) {
+      //       console.error("Profile creation failed:", insertError);
 
-            // プロファイル作成に失敗した場合でも、アカウント作成は成功とみなす
-            // ユーザーは後でプロファイルを完成させることができる
-            console.warn(
-              "Profile creation failed, but user account was created"
-            );
-          } else {
-            console.log("Profile created successfully");
-          }
-        } catch (profileError) {
-          console.error("Profile creation error:", profileError);
-          // プロファイル作成エラーでも継続
-        }
-      }
+      //       // プロファイル作成に失敗した場合でも、アカウント作成は成功とみなす
+      //       // ユーザーは後でプロファイルを完成させることができる
+      //       console.warn(
+      //         "Profile creation failed, but user account was created"
+      //       );
+      //     } else {
+      //       console.log("Profile created successfully");
+      //     }
+      //   } catch (profileError) {
+      //     console.error("Profile creation error:", profileError);
+      //     // プロファイル作成エラーでも継続
+      //   }
+      // }
 
       toast.success(
         "Account created successfully! Please check your email for verification."
