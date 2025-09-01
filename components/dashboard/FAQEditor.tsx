@@ -45,11 +45,41 @@ export default function FAQEditor({ site }: FAQEditorProps) {
   const [loading, setLoading] = useState(true);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [categories, setCategories] = useState<string[]>([]);
+  const [siteName, setSiteName] = useState(site?.name || "");
+  const [isNameEdited, setIsNameEdited] = useState(false);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [newCategory, setNewCategory] = useState("");
   const supabase = createClient();
+
+  // コンポーネント初期化時のデバッグ情報
+  useEffect(() => {
+    console.log("FAQEditor initialized with site:", {
+      id: site?.id,
+      name: site?.name,
+      fullSite: site,
+    });
+  }, [site]);
 
   useEffect(() => {
     fetchFAQItems();
+    fetchCategories();
   }, [site.id]);
+
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("site_categories")
+        .select("name")
+        .eq("site_id", site.id);
+
+      if (error) throw error;
+
+      const categoryNames = data.map((cat) => cat.name);
+      setCategories(categoryNames);
+    } catch (error: any) {
+      toast.error("カテゴリーの読み込みに失敗しました");
+    }
+  };
 
   const fetchFAQItems = async () => {
     try {
@@ -62,13 +92,6 @@ export default function FAQEditor({ site }: FAQEditorProps) {
       if (error) throw error;
 
       setFaqItems(data || []);
-
-      // Extract unique categories
-      const categorySet = new Set(
-        (data || []).map((item) => item.category).filter(Boolean)
-      );
-      const uniqueCategories = Array.from(categorySet) as string[];
-      setCategories(uniqueCategories);
     } catch (error: any) {
       toast.error("Failed to load FAQ items");
     } finally {
@@ -159,6 +182,118 @@ export default function FAQEditor({ site }: FAQEditorProps) {
     }
   };
 
+  const handleSiteNameChange = (newName: string) => {
+    setSiteName(newName);
+    setIsNameEdited(true);
+  };
+
+  const handleSiteNameSave = async () => {
+    try {
+      const { error } = await supabase
+        .from("faq_sites")
+        .update({ name: siteName })
+        .eq("id", site.id);
+
+      if (error) throw error;
+
+      setIsNameEdited(false);
+      toast.success("サイト名を更新しました");
+    } catch (error: any) {
+      toast.error("サイト名の更新に失敗しました");
+    }
+  };
+
+  const handleAddCategory = async () => {
+    try {
+      const trimmedCategory = newCategory.trim();
+      if (!trimmedCategory) return;
+
+      // 認証確認
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError) {
+        console.error("認証エラー:", authError);
+        toast.error("認証に失敗しました");
+        return;
+      }
+
+      if (!user) {
+        toast.error("認証が必要です");
+        return;
+      }
+
+      // サイトの所有者を確認
+      if (!site || !site.id) {
+        console.error("サイト情報が不足しています:", site);
+        toast.error("サイト情報が不正です");
+        return;
+      }
+
+      // サイトの所有者情報を取得
+      const { data: sitesData, error: siteError } = await supabase
+        .from("faq_sites")
+        .select("user_id")
+        .eq("id", site.id);
+
+      if (siteError) {
+        console.error("サイト情報取得エラー:", siteError);
+        toast.error("サイトの情報を取得できませんでした");
+        return;
+      }
+
+      if (!sitesData || sitesData.length === 0) {
+        console.error("サイトが見つかりません - ID:", site.id);
+        toast.error("指定されたサイトが見つかりません");
+        return;
+      }
+
+      const siteData = sitesData[0];
+
+      if (siteData.user_id !== user.id) {
+        console.error("権限エラー - ユーザーID不一致:", {
+          currentUser: user.id,
+          siteOwner: siteData.user_id,
+        });
+        toast.error("このサイトを編集する権限がありません");
+        return;
+      }
+
+      const { error } = await supabase.from("site_categories").insert({
+        site_id: site.id,
+        name: trimmedCategory,
+      });
+
+      if (error) throw error;
+
+      setCategories([...categories, trimmedCategory]);
+      setNewCategory("");
+      toast.success("カテゴリーを追加しました");
+    } catch (error: any) {
+      console.error("カテゴリーの追加エラー:", error);
+      toast.error(`カテゴリーの追加に失敗しました: ${error.message}`);
+    }
+  };
+
+  const handleDeleteCategory = async (categoryName: string) => {
+    try {
+      const { error } = await supabase
+        .from("site_categories")
+        .delete()
+        .eq("site_id", site.id)
+        .eq("name", categoryName);
+
+      if (error) throw error;
+
+      setCategories(categories.filter((c) => c !== categoryName));
+      toast.success("カテゴリーを削除しました");
+    } catch (error: any) {
+      toast.error("カテゴリーの削除に失敗しました");
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -182,7 +317,24 @@ export default function FAQEditor({ site }: FAQEditorProps) {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">FAQ Editor</h2>
-          <p className="text-gray-600">Editing: {site.name}</p>
+          <div className="flex items-center gap-2">
+            <Input
+              value={siteName}
+              onChange={(e) => handleSiteNameChange(e.target.value)}
+              className="max-w-xs text-gray-600"
+              placeholder="サイト名"
+            />
+            {isNameEdited && (
+              <Button
+                onClick={handleSiteNameSave}
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                保存
+              </Button>
+            )}
+          </div>
         </div>
         <Button
           onClick={() => setEditingItem({ isNew: true })}
@@ -190,6 +342,14 @@ export default function FAQEditor({ site }: FAQEditorProps) {
         >
           <Plus className="w-4 h-4 mr-2" />
           Add FAQ Item
+        </Button>
+        <Button
+          onClick={() => setShowCategoryManager(true)}
+          variant="outline"
+          className="ml-2"
+        >
+          <Tag className="w-4 h-4 mr-2" />
+          カテゴリー管理
         </Button>
       </div>
 
@@ -332,6 +492,71 @@ export default function FAQEditor({ site }: FAQEditorProps) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Category Manager Modal */}
+      <AnimatePresence>
+        {showCategoryManager && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+            onClick={() => setShowCategoryManager(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md"
+            >
+              <Card>
+                <CardHeader>
+                  <CardTitle>カテゴリー管理</CardTitle>
+                  <CardDescription>
+                    カテゴリーの追加、編集、削除ができます
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex gap-2">
+                      <Input
+                        value={newCategory}
+                        onChange={(e) => setNewCategory(e.target.value)}
+                        placeholder="新しいカテゴリー"
+                      />
+                      <Button
+                        onClick={handleAddCategory}
+                        disabled={!newCategory.trim()}
+                      >
+                        追加
+                      </Button>
+                    </div>
+                    <div className="space-y-2">
+                      {categories.map((category) => (
+                        <div
+                          key={category}
+                          className="flex items-center justify-between p-2 bg-gray-50 rounded"
+                        >
+                          <span>{category}</span>
+                          <Button
+                            onClick={() => handleDeleteCategory(category)}
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -399,14 +624,6 @@ function FAQItemForm({ item, categories, onSave, onCancel }: any) {
             ))}
           </SelectContent>
         </Select>
-        <Input
-          placeholder="Or type new category"
-          value={formData.category}
-          onChange={(e) =>
-            setFormData({ ...formData, category: e.target.value })
-          }
-          className="mt-2"
-        />
       </div>
 
       <div className="flex items-center space-x-2">
